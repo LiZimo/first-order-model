@@ -1,0 +1,50 @@
+### running the demo
+
+python demo.py  --config config/vox-adv-256.yaml --driving_video datasets/videos/2_input_crop.mp4 --source_image datasets/images/emma.jpg --checkpoint checkpoints/vox-adv-cpk.pth.tar --relative --adapt_scale
+
+python demo.py  --config config/vox-adv-256.yaml --driving_video datasets/videos/training_zimo_clipped.mp4 --source_image datasets/images/emma.jpg --checkpoint checkpoints/vox-adv-cpk.pth.tar --relative --adapt_scale
+
+python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/cropped_immo2.mp4 --source_image datasets/images/zimo.png --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale
+
+python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/immo.MOV --source_image datasets/images/zimo.png --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale
+
+python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/training_zimo_clipped.mp4 --source_image datasets/images/emma.jpg --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale
+
+python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/baby_driver_cropped.mp4 --source_image datasets/images/baby.png --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale
+
+
+### webcam
+
+python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/baby_driver_crop.mp4 --source_image datasets/images/emma.jpg --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam
+python demo.py  --config config/vox-256.yaml --source_image datasets/images/ludwig.jpg --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam
+
+### cropping video
+
+python crop-video.py --inp datasets/videos/training_zimo.mp4
+python crop-video.py --inp datasets/videos/2_input.MOV
+python crop-video.py --inp datasets/videos/baby_driver.mov
+
+ffmpeg -i datasets/videos/training_zimo.mp4 -ss 4.0 -t 30.0 -filter:v "crop=1080:1120:0:297, scale=256:256" datasets/videos/training_zimo_clipped2.mp4
+
+ffmpeg -i datasets/videos/training_zimo.mp4 -ss 0.0 -t 30.0 -filter:v "crop=850:850:50:350, scale=256:256" datasets/videos/training_zimo_clipped3.mp4
+
+ffmpeg -i datasets/videos/immo2.MOV -ss 10.437771104437771 -t 34.64164164164166 -filter:v "crop=600:600:734:250, scale=256:256" datasets/videos/cropped_immo2.mp4
+
+
+
+conda install pytorch==1.8.1 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11.1 -c pytorch -c conda-forge
+
+ffmpeg -i datasets/videos/training_zimo_clipped3.mp4 -vf "select=eq(n\,0)" -vframes 1 zimo.png
+
+
+### ffmpegf side by side
+
+ffmpeg \
+  -i datasets/videos/cropped_immo2.mp4 \
+  -i datasets/videos/result.mp4 \
+  -filter_complex '[0:v]pad=iw*2:ih[int];[int][1:v]overlay=W/2:0[vid]' \
+  -map '[vid]' \
+  -c:v libx264 \
+  -crf 23 \
+  -preset veryfast \
+  output.mp4
