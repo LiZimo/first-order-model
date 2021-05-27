@@ -18,6 +18,10 @@ python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/bab
 python demo.py  --config config/vox-256.yaml --driving_video datasets/videos/baby_driver_crop.mp4 --source_image datasets/images/emma.jpg --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam
 python demo.py  --config config/vox-256.yaml --source_image datasets/images/ludwig.jpg --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam
 
+python demo.py  --config config/vox-256.yaml --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam --source_image datasets/images/emma.jpg
+
+python demo.py  --adapt_scale --relative --config config/vox-256.yaml --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam --source_dir datasets/images
+
 ### cropping video
 
 python crop-video.py --inp datasets/videos/training_zimo.mp4
