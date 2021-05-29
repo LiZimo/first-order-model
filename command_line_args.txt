@@ -22,6 +22,8 @@ python demo.py  --config config/vox-256.yaml --checkpoint checkpoints/vox-cpk.pt
 
 python demo.py  --adapt_scale --relative --config config/vox-256.yaml --checkpoint checkpoints/vox-cpk.pth.tar --relative --adapt_scale --webcam --source_dir datasets/images
 
+python demo.py  --adapt_scale --relative --config config/vox-adv-256.yaml --checkpoint checkpoints/vox-adv-cpk.pth.tar --relative --adapt_scale --webcam --source_dir datasets/images --psp
+
 ### cropping video
 
 python crop-video.py --inp datasets/videos/training_zimo.mp4
