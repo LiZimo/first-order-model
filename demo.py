@@ -23,6 +23,7 @@ from PIL import Image
 from random import randint
 
 from pynput.keyboard import Key, Listener ## get keyboard input
+import threading ## threading so pynput doesn't block
 
 # import sys
 # sys.path.append("./pixel2style2pixel")
@@ -143,8 +144,8 @@ def auto_crop_resize_face(frame, fa):
 
 	### custom bbox expansion code based on size
 
-	length_increase = 1.65
-	height_increase = 1.65
+	length_increase = 1.7
+	height_increase = 1.7
 
 	cur_width = right - left
 	target_width = length_increase * cur_width
@@ -250,35 +251,69 @@ def stream_to_webcam(source_image, reader, generator, kp_detector, face_alignmen
 			# 	break
 
 def stream_to_webcam_multisource(source_dir, reader, generator, kp_detector, face_alignment_instance, relative=True, adapt_movement_scale=True, cpu=False, bbox_avg_frames = 9, check_ref_frame_rate = 5, cycle_time = 30, pspInfer_net = None):
+	global polled_key
+
 	bbox_queue = []
 	source_dir_basic = source_dir + '/basic'
 	source_dir_priority = source_dir + '/priority'
+	source_dir = source_dir_priority
+	all_input_dirs = [source_dir_basic, source_dir_priority]
 	source_files_ind = 0
+	source_dir_ind = 0
 	with torch.no_grad():
 
 		norm = float('inf')
 		for i, frame in tqdm(enumerate(reader)):
 
-			if i % cycle_time == 0:
+			print(polled_key)
 
-				if randint(0,2) == 2:
-					source_dir = source_dir_basic
-				else:
-					source_dir = source_dir_priority
 
-				source_files = glob(source_dir + '/**/*.*', recursive=True)
+			if polled_key == Key.up:
+				source_dir_ind += 1
+				source_dir = all_input_dirs[source_dir_ind % len(all_input_dirs)]
+				polled_key = None
+			if polled_key == Key.down:
+				source_dir_ind -= 1
+				source_dir = all_input_dirs[source_dir_ind  % len(all_input_dirs)]
+				polled_key = None
+
+			source_files = glob(source_dir + '/**/*.*', recursive=True)
+
+			if polled_key == 'c': ### cycle through input directories randomly
+
+
+				if i % cycle_time == 0:
+	
+					if randint(0,2) == 2:
+						source_dir = source_dir_basic
+					else:
+						source_dir = source_dir_priority
+	
+					source_image = imageio.imread(source_files[source_files_ind % len(source_files)])
+					
+					
+					source_files_ind += 1
+					
+
+			if polled_key == Key.left:
+				source_files_ind -= 1
 				source_image = imageio.imread(source_files[source_files_ind % len(source_files)])
-				source_image = resize(source_image, (256, 256))[..., :3]
-				source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2)
-				source_files_ind += 1
-				#source_files_ind = source_files_ind % len(source_files)
-				if not cpu:
-					source = source.cuda()
+				polled_key = None
 
-				kp_source = kp_detector(source)
+			if polled_key == Key.right:
+				source_files_ind += 1
+				source_image = imageio.imread(source_files[source_files_ind % len(source_files)])
+				polled_key = None
+
 
 			reader_frame = frame
-			
+			source_image = resize(source_image, (256, 256))[..., :3]
+			source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2)
+
+			if not cpu:
+				source = source.cuda()
+	
+			kp_source = kp_detector(source)
 
 			#### crop and detect relevant part of face
 			new_bbox = auto_crop_resize_face(frame, face_alignment_instance)
@@ -360,11 +395,11 @@ def stream_to_webcam_multisource(source_dir, reader, generator, kp_detector, fac
 			#print(output.shape)
 			#input('output shape after psp net')
 
-			#concatenated = np.concatenate((frame,output), axis = 1)
+			concatenated = np.concatenate((output,frame), axis = 0)
 
-			#cv2.imshow('image', concatenated[..., ::-1])
+			cv2.imshow('image', concatenated[..., ::-1])
 			#cv2.imshow('image', frame[..., ::-1])
-			cv2.imshow('image', output[..., ::-1])
+			#cv2.imshow('image', output[..., ::-1])
 			k = cv2.waitKey(20)
 			if (k & 0xff == ord('q')):
 				break
@@ -412,6 +447,23 @@ def find_best_frame(source, driving, cpu=False):
 			frame_num = i
 	return frame_num
 
+
+
+
+def on_press(key):
+	global polled_key
+	print('{0} pressed'.format(
+	 key))
+	polled_key = key
+
+def on_release(key):
+	print('{0} release'.format(
+		key))
+	if key == Key.esc:
+		# Stop listener
+		return False
+
+
 if __name__ == "__main__":
 	parser = ArgumentParser()
 	parser.add_argument("--config", required=True, help="path to config")
@@ -442,6 +494,8 @@ if __name__ == "__main__":
 
 	opt = parser.parse_args()
 
+	#print(opt)
+	#input('opt')
 
 
 	generator, kp_detector = load_checkpoints(config_path=opt.config, checkpoint_path=opt.checkpoint, cpu=opt.cpu)
@@ -493,4 +547,19 @@ if __name__ == "__main__":
 			source_image = resize(source_image, (256, 256))[..., :3]
 			stream_to_webcam(source_image, reader, generator, kp_detector, fa, relative=opt.relative, adapt_movement_scale=opt.adapt_scale, cpu=opt.cpu)
 		else: 
-			stream_to_webcam_multisource(opt.source_dir, reader, generator, kp_detector, fa, relative=opt.relative, adapt_movement_scale=opt.adapt_scale, cpu=opt.cpu, cycle_time= int (opt.cycle_time * 10), pspInfer_net = pspInfer_net)
+
+
+			global polled_key
+			polled_key = 'c'
+
+			webcam_args = [opt.source_dir, reader, generator, kp_detector, fa]
+			webcam_kwargs = {'relative': opt.relative, 'adapt_movement_scale': opt.adapt_scale, 'cpu': opt.cpu, 'cycle_time': int (opt.cycle_time * 10), 'pspInfer_net': pspInfer_net}
+			thread2 = threading.Thread(target=stream_to_webcam_multisource, args=webcam_args, kwargs=webcam_kwargs)
+			thread2.start()
+			
+			#stream_to_webcam_multisource(opt.source_dir, reader, generator, kp_detector, fa, relative=opt.relative, adapt_movement_scale=opt.adapt_scale, cpu=opt.cpu, cycle_time= int (opt.cycle_time * 10), pspInfer_net = pspInfer_net)
+	
+			with Listener(
+				on_press=on_press,
+				on_release=on_release) as listener:
+				listener.join()
